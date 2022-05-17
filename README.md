@@ -13,6 +13,7 @@ A specification for building APIs in JSON based format for application-level com
   * Better adaptation capability
   * Covering most of the possible scenario without breaking it
   * Cross-referencing for log detection/backtrace
+  * Backward compatible (never remove, only add)
 
 ## Let's explain with example
 
@@ -35,21 +36,21 @@ A specification for building APIs in JSON based format for application-level com
             "sample2": [...],
         }
     },
-    "_ref": {
-        "data.attributes.category": {
+    "_references": {
+        "category": {
             "1": "One Production",
             "2": "Their Production",
             "3": "Our Production",
             "4": "Out of Sight"
         }
     },
-    "_property": {
+    "_properties": {
         "data": {
             "type": "object",
             "name": "On the road",
             "template": "https://github.com/abmmhasan/sample-link"
         },
-        "data.attributes.sample1": {
+        "sample1": {
             "type": "array",
             "name": "Sample",
             "deprecation": "https://demo.link4"
@@ -66,7 +67,7 @@ A specification for building APIs in JSON based format for application-level com
 
 ```json
 {
-    "signature": "bd4248fa-817b-4127-87d5-fe8d98e4f5fd",
+    "signature": "f4b44a6e-d593-11ec-9d64-0242ac120002",
     "version": "1",
     "status": "fail",
     "message": "Invalid request",
@@ -84,7 +85,7 @@ A specification for building APIs in JSON based format for application-level com
             "detail": "Volume does not, in fact, go to 11."
         }
     ],
-    "_property": {
+    "_properties": {
         "data": {
             "type": "array",
             "name": "invalid-resource"
@@ -110,7 +111,7 @@ A specification for building APIs in JSON based format for application-level com
             "detail": "Reputation service not responding after three requests."
         }
     ],
-    "_property": {
+    "_properties": {
         "data": {
             "type": "array",
             "name": "reputation-resource-error"
@@ -125,9 +126,9 @@ Lets have a look at our parameter assignment per **status**:
 
 |Type| Description| Required Keys | Optional Keys |
 | :---:| :---| :---| :---|
-|success| All is well! & response body returned as usual!| signature, version, status, data |message, _links,_property, _ref |
-|fail| Issue with submitted data (validation,...), Pre-condition failure | signature, version, status, message|data, _property |
-|error| Failed to process request; e.g. intermediate external API issue, exceptions,... | signature, version, status, message | code, data, _property |
+|success| All is well! & response body returned as usual!| signature, version, status, data |message, _links, _properties, _references |
+|fail| Issue with submitted data (validation,...), Pre-condition failure | signature, version, status, message|data, _properties |
+|error| Failed to process request; e.g. intermediate external API issue, exceptions,... | signature, version, status, message | code, data, _properties |
 
 Now lets get familiar by element:
 
@@ -139,8 +140,8 @@ Now lets get familiar by element:
 | message | string | A simple message explaining current response. |E.g. for Success 'Data retrieve successful' or for fail 'Data validation failure'.|
 | code | string | Error code. This is not HTTP error code but a symbolic code explaining what actually happened. |E.g. EIU001 may be an error code returned for non-existing User.|
 | data** | array, object, string, bool, number | Main payload. Data type must be unique per version-url-method combo. |Obviously it is what you are sending to the client.|
-| _ref** | object | Any additional info required for data attribute relation. |E.g. data.human.attitude have id. So under ref we should have data.human.attitude key which enlist possible value for that key as "key: value" attribute. So client can parse data as required.|
-| _property** | object | Data property |This is an object explaining all the Group type.|
+| _references** | object | Any additional info required for data attribute relation. |E.g. data.human.attitude have id. So under ref we should have data.human.attitude key which enlist possible value for that key as "key: value" attribute. So client can parse data as required.|
+| _properties** | object | Data property |This is an object explaining all the Group type.|
 | _links** | object | Provide all the required links here, which can be used for reference, pagination, additional info,... |E.g. self, next, previous, author, book, volume etc.|
 
 ** These parameters have more in-depth property type-hint. Check below!
@@ -156,15 +157,44 @@ Now lets get familiar by element:
   |type|string|An unique identifier for the object|
   |source|string|unique identifier for source for data in attribute e.g. self|
   |attributes|array, object|payload|
+  |references|object|same as [_references](#_references) but specific to current memeber only (optional)|
+  |properties|object|same as [_properties](#_properties) but specific to current memeber only (optional)|
 
     ```json
     "data": [
         {
             "type": "articles",
             "source": "self",
-            "attributes": {
-                "title": "Rails is Omakase",
-                "category": 1
+            "attributes": [
+                {
+                    "title": "Rails is Omakase",
+                    "category": 1
+                },
+                {
+                    "title": "Rails is Omakase2",
+                    "category": 4
+                },
+                {
+                    "title": "Rails is Omakase3",
+                    "category": 1
+                }
+            ],
+            "references": {
+                "category": {
+                    "1": "One Production",
+                    "2": "Their Production",
+                    "3": "Our Production",
+                    "4": "Out of Sight"
+                }
+            },
+            "properties": {
+                "type": "array",
+                "name": "c_title",
+                "template":"https://some.link" ,
+                "deprecation": "https://demo.link4",
+                "count": 3,
+                "range": "1000-1200",
+                "page": 52
             }
         }
     ]
@@ -218,16 +248,18 @@ Now lets get familiar by element:
 
 _Note: Though for success response it may hold any type of data but you must keep the type same respecting version and endpoint._
 
-### `_ref`
+### `_references`
 
 Sometimes we may need to send some extra information regarding data parsing. & that is where it comes in. You can also think of it as **normalizer** that holds some defination/key-value resolver to parse data.
 
-* This object will have key (Multi-level key name should be glued with dot) that is path to the resource. E.g. data.attributes.category,
-* In value it will hold an object as key value attribute. These keys are possible value for that path, which will be resolved as value assigned here. E.g. We have data as given below. So any id/reference we get in attributes.category inside data object should be parsed accordingly. Like, if we get "1" we will parse as "One Production"
+* This object will have key which client should be aware of,
+* Anywhere the key name matches, will be resolved as key-value pair
+* These keys will be resolved as value assigned here. E.g. We have data as given below. So any id/reference we get in attributes.category inside data object should be parsed accordingly. Like, if we get "1" we will parse as "One Production".
+* It can even be a group of object / array as well under those keys depending on use case scenario.
 
     ```json
-    "_ref": {
-        "data.attributes.category": {
+    "_references": {
+        "category": {
             "1": "One Production",
             "2": "Their Production",
             "3": "Our Production",
@@ -236,9 +268,9 @@ Sometimes we may need to send some extra information regarding data parsing. & t
     }
     ```
 
-### `_property`
+### `_properties`
 
-This actually holds identity/property of groups inside data. Key-value pair is parsable as like `_ref` but the value section have several things in it.
+This actually holds identity/property of groups inside data. Key-value pair is parsable as like `_references` but the value section have several things in it.
 
 | Name   | Type |      Hint/Example       |
 |:----:|:----:| :--- |
@@ -246,14 +278,22 @@ This actually holds identity/property of groups inside data. Key-value pair is p
 | name | string  | name for that key (Should be a unique identifier for that specific response section)|
 | template | url | if the resource under that key follows some specific template then link to that template (optional) |
 | deprecation | url | if the resources under that key gonna deprecate (soon) & will be moved to/under a new link, provide the link here (optional) |
+| count | int | if array, provide data count (optional) |
+| range | string (hyphened data) | If (paginated) array provide range (optional) |
+| page | int | If (paginated) array provide page index (optional) |
+
+** You can add more memebers as you see fit
 
 ```json
-"_property": {
+"_properties": {
     "data": {
         "type": "array",
-        "name": "Content Title",
+        "name": "c_title",
         "template":"https://some.link" ,
-        "deprecation": "https://demo.link4" 
+        "deprecation": "https://demo.link4",
+        "count": 10,
+        "range": "102-890",
+        "page": 52
     }
 }
 ```
