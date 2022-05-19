@@ -135,7 +135,7 @@ Now lets get familiar by element:
 | Name | Type | Use Case | Hint/Example |
 | :---: | :---: | :--- |:----|
 | signature | string | Provide a unique signature to every response. This will/would be used for tracing. | This signature should be generated during client request & must use in every possible log (even with storage if possible). A [standard UUID implementation](https://github.com/abmmhasan/UUID) would be nice. |
-| version | string | The version number of the structure change when it happened for the first time. | For example, our project version is 2.5, but the API structure actually changed in version 1.9; so the version number should be **1.9** here.|
+| version** | string | The version number of the structure change when it happened for the first time. Must follow [Semantic Versioning](https://semver.org/). | 2.3, 6.7, ...|
 | status | string | Response status |Must be any of **success**, **fail** or **error**. Check above table for criteria.|
 | message | string | A simple message explaining current response. |E.g. for Success 'Data retrieve successful' or for fail 'Data validation failure'.|
 | code | string | Error code. This is not HTTP error code but a symbolic code explaining what actually happened. |E.g. EIU001 may be an error code returned for non-existing User.|
@@ -148,7 +148,18 @@ Now lets get familiar by element:
 
 ## In-depth explanation
 
+### `version`
+
+* Versioning must follow [Semantic Versioning](https://semver.org/)
+* The version number of the structure change when it happened for the first time. For example, our project version is 2.5, but the API structure actually changed in version 1.9; so the version number should be **1.9** here.
+* As of Semantic Versioning (major.minor.patch), existing structure can be modified according to versioning method:
+  * **patch** & **minor** version change means we can fix issue with existing data (like linguistics change, add new Error Code for Code key etc.). Must be backward compatible.
+  * **minor** version change means we can add new keys.
+  * **major** version may change structure like converting some data.attribute member type from object to array or vice-versa etc.
+
 ### `data`
+
+Though it may hold any type of data but you must keep the type/structure same respecting version-url-method (respecting version rule as given above) combination.
 
 * For `success` response it may hold any type of data as defined (array/object/string/bool/number). Though it's use is completely independent but if it is **object** or **array of object** then it is recommended to keep following structure in immediate child objects:
 
@@ -245,8 +256,6 @@ Now lets get familiar by element:
         }
     ]
     ```
-
-_Note: Though for success response it may hold any type of data but you must keep the type same respecting version and endpoint._
 
 ### `_references`
 
