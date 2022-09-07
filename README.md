@@ -150,7 +150,7 @@ Now lets get familiar by element:
 
 ### `version`
 
-* Versioning must follow [Semantic Versioning](https://semver.org/)
+* Versioning must follow [Semantic Versioning](https://semver.org/).
 * The version number of the structure change when it happened for the first time. For example, our project version is 2.5, but the API structure actually changed in version 1.9; so the version number should be **1.9** here.
 * As of Semantic Versioning (major.minor.patch), existing structure can be modified according to versioning method:
   * **patch** & **minor** version change means we can fix issue with existing data (like linguistics change, add new Error Code for Code key etc.). Must be backward compatible.
